@@ -1,0 +1,4 @@
+.mypy_cache
+__pycahce__
+recieved_files/*
+.DS_Store

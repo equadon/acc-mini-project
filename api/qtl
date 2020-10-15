@@ -15,5 +15,6 @@ then
     curl -X POST "$ADDRESS/resize" -d "$2"
 elif [ "$1" = "inject" ]
 then
-    curl -X POST "$ADDRESS/inject" -F "$2=@$2"
+    NAME=$(basename "$2")
+    curl -X POST "$ADDRESS/inject" -F "$NAME=@$2"
 fi

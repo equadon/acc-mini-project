@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from flask import Flask, request
+from flask import Flask, request, jsonify
 import json
 import time
 import functools
@@ -8,6 +8,33 @@ import functools
 app = Flask(__name__)
 
 mockstate = {"running": False, "servers": 0}
+
+
+def success(data):
+    """Success response."""
+    return jsonify({
+        'status': 'success',
+        'data': data,
+    })
+
+def fail(data):
+    """Problem with the submitted data, or some pre-condition of the API call wasn't satisfied."""
+    return jsonify({
+        'status': 'fail',
+        'data': data,
+    })
+
+def error(message, code=None, data=None):
+    """Error occurred in processing the request, i.e. an exception was thrown."""
+    response = {
+        'status': 'error',
+        'message': message,
+    }
+    if code:
+        response['code'] = code
+    if data:
+        response['data'] = data
+    return jsonify(response)
 
 
 # === ERROR HANDLING === #
@@ -29,47 +56,48 @@ def server_started_guard(f):
 
 @app.errorhandler(ValueError)
 def handle_value_error(e):
-    return "invlid data", 400
+    return fail('invalid data'), 400
 
 
 @app.errorhandler(ServerNotStarted)
 def handle_server_not_started(e):
-    return "server not started", 400
+    return error('server not started'), 400
 
 
 # === API ENDPOINTS === #
 
 
-@app.route('/start', methods=['POST', 'GET'])
+@app.route('/api/start', methods=['POST', 'GET'])
 def start():
     num_servers = request.data or 5
     time.sleep(5)
-    mockstate["running"] = True
-    mockstate["servers"] = num_servers
-    return "success"
+    mockstate['running'] = True
+    mockstate['servers'] = num_servers
+
+    return success(None)
 
 
-@app.route('/status', methods=['GET'])
+@app.route('/api/status', methods=['GET'])
 def status():
-    return json.dumps(mockstate)
+    return success(mockstate)
 
 
-@app.route('/resize', methods=['POST'])
+@app.route('/api/resize', methods=['POST'])
 @server_started_guard
 def resize():
-    data = request.get_data(as_text=True)
+    data = request.get_json()
     print(data)
     if not data:
-        return "no data recieved"
-    if data[0] == '+' or data[0] == "-":
-        mockstate["servers"] += int(data)
-    else:
-        mockstate["servers"] = int(data)
+        return fail('no data recieved')
+    # if data[0] == '+' or data[0] == '-':
+    #     mockstate['servers'] += int(data)
+    # else:
+    #     mockstate['servers'] = int(data)
     time.sleep(3)
-    return "success"
+    return success(None)
 
 
-@app.route('/inject', methods=['POST'])
+@app.route('/api/inject', methods=['POST'])
 @server_started_guard
 def inject():
     files = request.files
@@ -81,7 +109,7 @@ def inject():
         f.seek(0)
         f.write(content.read())
         f.truncate()
-    return "success"
+    return success(None)
 
 
 if __name__ == '__main__':

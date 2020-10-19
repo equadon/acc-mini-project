@@ -14,6 +14,7 @@ interface State {
 
 type Action =
   | { type: 'start-server' }
+  | { type: 'server-started' }
   | { type: 'check-status' }
   | { type: 'status', status?: string, serversOnline?: number };
 
@@ -23,6 +24,11 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         serverLoading: true,
+      };
+    case 'server-started':
+      return {
+        ...state,
+        serverLoading: false,
       };
     case 'check-status':
       return {
@@ -51,7 +57,7 @@ export const ServersPage = () => {
       const response = result.data;
       dispatch({
         type: 'status',
-        status: response.data.running ? 'Online' : 'Offline',
+        status: response.data.success ? 'Online' : 'Offline',
         serversOnline: response.data.servers,
       });
     } catch (error) {
@@ -61,7 +67,19 @@ export const ServersPage = () => {
   };
 
   const onStartServer = async () => {
-    dispatch({ type: 'start-server' });
+    try {
+      dispatch({ type: 'start-server' });
+      const result = await Axios.post('/api/start');
+      console.log(result);
+      dispatch({
+        type: 'status',
+        status: result.data.status === "success" ? 'Online' : 'Offline'
+      });
+      dispatch({ type: 'server-started' });
+    } catch (error) {
+      console.error('error');
+      dispatch({ type: 'status' });
+    }
   };
 
   const serversOnline = state.serversOnline !== undefined ? state.serversOnline : '?';

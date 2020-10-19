@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 from flask import Flask, request, jsonify
-import json
 import time
 import functools
 
@@ -17,15 +16,19 @@ def success(data):
         'data': data,
     })
 
+
 def fail(data):
-    """Problem with the submitted data, or some pre-condition of the API call wasn't satisfied."""
+    """Problem with the submitted data,
+    or some pre-condition of the API call wasn't satisfied."""
     return jsonify({
         'status': 'fail',
         'data': data,
     })
 
+
 def error(message, code=None, data=None):
-    """Error occurred in processing the request, i.e. an exception was thrown."""
+    """Error occurred in processing the request,
+    i.e. an exception was thrown."""
     response = {
         'status': 'error',
         'message': message,
@@ -66,7 +69,6 @@ def handle_server_not_started(e):
 
 # === API ENDPOINTS === #
 
-
 @app.route('/api/start', methods=['POST', 'GET'])
 def start():
     num_servers = request.data or 5
@@ -85,14 +87,14 @@ def status():
 @app.route('/api/resize', methods=['POST'])
 @server_started_guard
 def resize():
-    data = request.get_json()
+    data = request.get_data()
     print(data)
     if not data:
         return fail('no data recieved')
-    # if data[0] == '+' or data[0] == '-':
-    #     mockstate['servers'] += int(data)
-    # else:
-    #     mockstate['servers'] = int(data)
+    if data[0] == '+' or data[0] == '-':
+        mockstate['servers'] += int(data)
+    else:
+        mockstate['servers'] = int(data)
     time.sleep(3)
     return success(None)
 

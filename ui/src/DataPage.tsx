@@ -10,7 +10,7 @@ export const DataPage = () => {
   return (
     <>
       <div className="site-layout-background" style={{ padding: 24, minHeight: 360 }}>
-        <Dragger>
+        <Dragger action='/api/inject'>
           <p className="ant-upload-drag-icon">
             <InboxOutlined />
           </p>

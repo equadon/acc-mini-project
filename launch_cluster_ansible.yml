@@ -34,7 +34,7 @@
         remote_ip_prefix: 0.0.0.0/0
         verify: false
      
-    - name: Deploy an instance
+    - name: Deploy or delete an instance
       os_server:
         state: "{{ cluster_state }}"
         name: spark_node{{ item }}
@@ -48,24 +48,80 @@
       register: nova_cookbook
       with_sequence:        
         count={{ count }}
-      tags: 
-        - delete_cluster
 
     - name: Add instance to Inventory      
       add_host: name="{{ item.server.name }}" groups=webservers         	
                 ansible_ssh_host="{{ item.server.accessIPv4 }}"    
       with_items: "{{ nova_cookbook.results }}"
+      when: cluster_state == "present"
+
+    - name: Replace hosts file with hosts file containing spark nodes
+      become: yes
+      file:
+        path: /etc/hosts
+        state: absent
+      when: cluster_state == "present"
+
+    - name: Add ip adress to /etc/hosts
+      become: yes
+      blockinfile:
+        path: /etc/hosts
+        create: yes
+        block: |
+          127.0.0.1 localhost
+          {% for item in nova_cookbook.results %}
+          {{ item.server.accessIPv4 }} {{ item.server.name }}
+          {% endfor %}
+
+          # The following lines are desirable for IPv6 capable hosts
+          ::1 ip6-localhost ip6-loopback
+          fe00::0 ip6-localnet
+          ff00::0 ip6-mcastprefix
+          ff02::1 ip6-allnodes
+          ff02::2 ip6-allrouters
+          ff02::3 ip6-allhosts
+      when: cluster_state == "present"
+
+    - name: remove /etc/ansible/hosts file
+      become: yes
+      file:
+        path: /etc/ansible/hosts
+        state: absent
+      when: cluster_state == "present"
+
+    - name: Make a new /etc/ansible/hosts file containing spark master and workers
+      become: yes
+      blockinfile:
+        path: /etc/ansible/hosts
+        create: yes
+        block: |
+          [sparkmaster]
+          spark_node1
+
+          [sparkworker]
+          {% for item in nova_cookbook.results[1:] %}
+          {{ item.server.name }}
+          {% endfor %}
+      when: cluster_state == "present"
+
 
 - name: Wait for port 22 to be ready
   hosts: webservers
   gather_facts: False
+  vars:
+    cluster_state: present
   tasks:
     - local_action: wait_for port=22 host="{{ ansible_ssh_host }}"  search_regex=OpenSSH delay=10
+      when: cluster_state == "present"
 
 - hosts: webservers
   remote_user: ubuntu
   become: yes
   gather_facts: no
+  vars:
+    cluster_state: present
   tasks:
     - name: 'install python minimal'
       raw:  sudo apt-get -y update && sudo apt-get -y install python-minimal
+      when: cluster_state == "present"
+

@@ -37,8 +37,8 @@ ssh-add .ssh/id_rsa
 ```bash
 ansible-playbook launch_cluster_ansible.yml --extra-vars "count=2"
 ```    
-    (where count is the size of the cluster and smallest cluster size is 2)
-    -	if error try again, if there still is an error remove all lines from .ssh/known_hosts
+(where count is the size of the cluster and smallest cluster size is 2)
+-	if error try again, if there still is an error remove all lines from .ssh/known_hosts
     
 8.  Then run the spark_deployment.yml file in QTLaaS map and you should be able to access QTL as a service from http://<spark_node1 floating ip>:60060
 

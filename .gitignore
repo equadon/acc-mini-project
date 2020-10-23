@@ -1,4 +1,6 @@
 .mypy_cache
 __pycahce__
-recieved_files/*
+api/recieved_files/*
+ui/node_modules
+*-env/
 .DS_Store

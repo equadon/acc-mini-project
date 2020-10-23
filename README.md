@@ -47,6 +47,7 @@ ansible-playbook launch_cluster_ansible.yml --extra-vars "count=2"
 ```bash
 ansible-playbook launch_cluster_ansible.yml --extra-vars "count=3"
 ```
+and then running the spark_deployment.yml file file again
 (can only add nodes so make sure to use right count, if you have a cluster of size 2 and want to add 1 node write count=3)
 
 10.  Delete cluster with: (count is size of cluster)

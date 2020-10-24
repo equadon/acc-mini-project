@@ -1,37 +1,12 @@
 #!/usr/bin/python3
 
 from flask import Flask, request, jsonify
-# from ansible_runner import interface
-import subprocess
 import time
 import functools
-import re
 
 app = Flask(__name__)
 
-
-def run_ans(n, extra_vars=[]):
-    arguments = ["ansible-playbook",
-                 "../ansible/launch_cluster_ansible.yml",
-                 "--extra-vars",
-                 f'"count={n} {" ".join(extra_vars)}"']
-    call = subprocess.run(
-            arguments,
-            capture_output=True)
-            # stdout=subprocess.PIPE,
-            # stderr=subprocess.PIPE)
-    print(call)
-    # print(call.stdout)
-    # print(call.stderr)
-    return call.returncode
-
-
-def check_status():
-    f = open('/etc/hosts', 'r')
-    lines = f.readlines()
-    spark_line_regex = r'\d{3}\.\d{3}\.\d{2,3}\.\d{2,3} spark_node\d+'
-    server_count = filter(lambda line: re.match(spark_line_regex, line), lines)
-    return {'running': server_count != 0, 'servers': server_count}
+mockstate = {"running": False, "servers": 0}
 
 
 def success(data):
@@ -74,11 +49,10 @@ class ServerNotStarted(Exception):
 def server_started_guard(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        status = check_status()
-        if not status['running']:
+        if not mockstate["running"]:
             raise ServerNotStarted
         else:
-            return f([status, *args], **kwargs)
+            return f(*args, **kwargs)
 
     return wrapper
 
@@ -98,20 +72,16 @@ def handle_server_not_started(e):
 @app.route('/api/start', methods=['POST', 'GET'])
 def start():
     num_servers = request.data or 5
-    run_ans(num_servers)
-    return success(None)
+    time.sleep(5)
+    mockstate['running'] = True
+    mockstate['servers'] = num_servers
 
-
-@app.route('/api/shutdown', methods=['POST', 'GET'])
-@server_started_guard
-def shutdown(state):
-    run_ans(state["servers"], extra_vars=["cluster_state=absent"])
     return success(None)
 
 
 @app.route('/api/status', methods=['GET'])
 def status():
-    return fail("Not implemented")
+    return success(mockstate)
 
 
 @app.route('/api/resize', methods=['POST'])
@@ -121,8 +91,11 @@ def resize():
     print(data)
     if not data:
         return fail('no data recieved')
-
-    run_ans(int(data))
+    if data[0] == '+' or data[0] == '-':
+        mockstate['servers'] += int(data)
+    else:
+        mockstate['servers'] = int(data)
+    time.sleep(3)
     return success(None)
 
 
@@ -141,5 +114,5 @@ def inject():
     return success(None)
 
 
-# if __name__ == '__main__':
-#     app.run(host='0.0.0.0', debug=True)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', debug=True)

@@ -50,7 +50,7 @@
         count={{ count }}
 
     - name: Add instance to Inventory      
-      add_host: name="{{ item.server.name }}" groups=webservers         	
+      add_host: name="{{ item.server.name }}" groups=webservers         
                 ansible_ssh_host="{{ item.server.accessIPv4 }}"    
       with_items: "{{ nova_cookbook.results }}"
       when: cluster_state == "present"
@@ -81,6 +81,23 @@
           ff02::2 ip6-allrouters
           ff02::3 ip6-allhosts
       when: cluster_state == "present"
+
+    - name: Clean up /etc/hosts
+      become: yes
+      blockinfile:
+        path: /etc/hosts
+        create: yes
+        block: |
+          127.0.0.1 localhost
+
+          # The following lines are desirable for IPv6 capable hosts
+          ::1 ip6-localhost ip6-loopback
+          fe00::0 ip6-localnet
+          ff00::0 ip6-mcastprefix
+          ff02::1 ip6-allnodes
+          ff02::2 ip6-allrouters
+          ff02::3 ip6-allhosts
+      when: cluster_state == "absent"
 
     - name: remove /etc/ansible/hosts file
       become: yes
@@ -123,5 +140,8 @@
   tasks:
     - name: 'install python minimal'
       raw:  sudo apt-get -y update && sudo apt-get -y install python-minimal
+      register: py_minimum
       when: cluster_state == "present"
-
+      retries: 3
+      delay: 3
+      until: py_minimum is success

@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 # from ansible_runner import interface
 import subprocess
 import time
@@ -165,6 +165,11 @@ def inject(*args):
                         '-o', 'UserKnownHostsFile=/dev/null',
                         path, f'ubuntu@{ip}:~/'])
     return success(None)
+
+
+@app.route('/public/<path:path>')
+def send_public(path):
+    return send_from_directory('../ui/build/', path)
 
 
 if __name__ == '__main__':

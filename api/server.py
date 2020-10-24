@@ -6,6 +6,7 @@ import subprocess
 import time
 import functools
 import re
+import uuid
 
 app = Flask(__name__)
 
@@ -27,21 +28,20 @@ SPARK_LINE_REGEX = re.compile(r'(\d{3}\.\d{3}\.\d{2,3}\.\d{2,3}) spark_node\d+')
 
 
 def get_spark_ips():
-    f = open('/etc/hosts', 'r')
-    lines = f.readlines()
-    ips = []
-    for line in lines:
-        match = SPARK_LINE_REGEX.match(line)
-        if match:
-            ips.append(match.group(1))
-    return ips
+    with open('/etc/hosts', 'r') as f:
+        lines = f.readlines()
+        ips = []
+        for line in lines:
+            match = SPARK_LINE_REGEX.match(line)
+            if match:
+                ips.append(match.group(1))
+        return ips
 
 
 def check_status():
-    f = open('/etc/hosts', 'r')
-    lines = f.readlines()
-    server_count = len(list(filter(lambda line: SPARK_LINE_REGEX.match(line), lines)))
-    f.close()
+    with open('/etc/hosts', 'r') as f:
+        lines = f.readlines()
+        server_count = len(list(filter(lambda line: SPARK_LINE_REGEX.match(line), lines)))
     return {'running': server_count != 0, 'servers': server_count}
 
 
@@ -118,16 +118,14 @@ def start():
     if returncode == 0:
         return success(check_status())
     else:
-        return fail("Ansible exited with code 1")
+        return fail("Ansible exited with code 1"), 400
 
 
 @app.route('/api/shutdown', methods=['POST', 'GET'])
 @server_started_guard
 def shutdown(status):
-    print(status)
     run_ans(status["servers"], extra_vars=["cluster_state=absent"])
     clean_hosts_file()
-
     return success(None)
 
 
@@ -138,13 +136,12 @@ def status():
 
 @app.route('/api/resize', methods=['POST'])
 @server_started_guard
-def resize(status):
-    data = request.get_data()
-    print(data)
+def resize(*args):
+    data = request.get_json()
     if not data:
-        return fail('no data recieved')
+        return fail('no data recieved'), 400
 
-    run_ans(status + int(data))
+    run_ans(int(data['servers']))
     return success(None)
 
 
@@ -153,18 +150,17 @@ def resize(status):
 def inject(*args):
     files = request.files
     ips = get_spark_ips()
-    for name, content in files.items():
-        f = open("recieved_files/" + name, "w+b")
-        # .seek and .truncate is to overwrite the previous content
-        f.seek(0)
-        f.write(content.read())
-        f.truncate()
+    for _, content in files.items():
+        filename = str(uuid.uuid4())
+        path = 'received_files/%s' % filename
+        with open(path, 'w+b') as f:
+            f.write(content.read())
         for ip in ips:
             subprocess.Popen(
                     ['scp',
                         '-o', 'StrictHostKeyChecking=no',
                         '-o', 'UserKnownHostsFile=/dev/null',
-                        f'recieved_files/{name}', f'ubuntu@{ip}:~/'])
+                        path, f'ubuntu@{ip}:~/'])
     return success(None)
 
 

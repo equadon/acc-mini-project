@@ -7,6 +7,9 @@ ADDRESS="http://$IP:$PORT/api"
 if [ "$1" = "start" ]
 then 
     curl -X POST "$ADDRESS/start"
+elif [ "$1" = "shutdown" ]
+then
+    curl -X POST "$ADDRESS/shutdown"
 elif [ "$1" = "status" ]
 then
     curl -X GET "$ADDRESS/status"

@@ -17,21 +17,32 @@ def run_ans(n, extra_vars=[]):
                  f'"count={n} {" ".join(extra_vars)}"']
     call = subprocess.run(
             arguments,
-            capture_output=True)
-            # stdout=subprocess.PIPE,
-            # stderr=subprocess.PIPE)
-    print(call)
-    # print(call.stdout)
-    # print(call.stderr)
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+    print(call.stdout, call.stderr)
     return call.returncode
+
+SPARK_LINE_REGEX = re.compile(r'\d{3}\.\d{3}\.\d{2,3}\.\d{2,3} spark_node\d+')
 
 
 def check_status():
     f = open('/etc/hosts', 'r')
     lines = f.readlines()
-    spark_line_regex = r'\d{3}\.\d{3}\.\d{2,3}\.\d{2,3} spark_node\d+'
-    server_count = filter(lambda line: re.match(spark_line_regex, line), lines)
+    server_count = len(list(filter(lambda line: SPARK_LINE_REGEX.match(line), lines)))
+    f.close()
     return {'running': server_count != 0, 'servers': server_count}
+
+
+def clean_hosts_file():
+    subprocess.Popen(['sudo', 'sed', '-i', '/spark_node/d', '/etc/hosts'])
+
+    # f = open('/etc/hosts', 'r+')
+    # lines = f.readlines()
+    # new_lines = filter(lambda line: not SPARK_LINE_REGEX.match(line), lines)
+    # f.seek(0)
+    # f.write("".join(new_lines))
+    # f.truncate()
+    # f.close()
 
 
 def success(data):
@@ -78,13 +89,14 @@ def server_started_guard(f):
         if not status['running']:
             raise ServerNotStarted
         else:
-            return f([status, *args], **kwargs)
+            return f(*args, status=status, **kwargs)
 
     return wrapper
 
 
 @app.errorhandler(ValueError)
 def handle_value_error(e):
+    print(e)
     return fail('invalid data'), 400
 
 
@@ -104,14 +116,17 @@ def start():
 
 @app.route('/api/shutdown', methods=['POST', 'GET'])
 @server_started_guard
-def shutdown(state):
-    run_ans(state["servers"], extra_vars=["cluster_state=absent"])
+def shutdown(status={}):
+    print(status)
+    run_ans(status["servers"], extra_vars=["cluster_state=absent"])
+    clean_hosts_file()
+    
     return success(None)
 
 
 @app.route('/api/status', methods=['GET'])
 def status():
-    return fail("Not implemented")
+    return success(check_status())
 
 
 @app.route('/api/resize', methods=['POST'])
@@ -141,5 +156,5 @@ def inject():
     return success(None)
 
 
-# if __name__ == '__main__':
-#     app.run(host='0.0.0.0', debug=True)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', debug=True)

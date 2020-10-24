@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IP="0.0.0.0"
+IP="${ANSIBLE_MASTER_IP:-0.0.0.0}"
 PORT="5000"
 ADDRESS="http://$IP:$PORT/api"
 
@@ -20,4 +20,6 @@ elif [ "$1" = "inject" ]
 then
     NAME=$(basename "$2")
     curl -X POST "$ADDRESS/inject" -F "$NAME=@$2"
+elif [ "$1" = "set-ip" ]
+    export ANSIBLE_MASTER_IP="$2"
 fi

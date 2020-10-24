@@ -22,7 +22,18 @@ def run_ans(n, extra_vars=[]):
     print(call.stdout, call.stderr)
     return call.returncode
 
-SPARK_LINE_REGEX = re.compile(r'\d{3}\.\d{3}\.\d{2,3}\.\d{2,3} spark_node\d+')
+SPARK_LINE_REGEX = re.compile(r'(\d{3}\.\d{3}\.\d{2,3}\.\d{2,3}) spark_node\d+')
+
+
+def get_spark_ips():
+    f = open('/etc/hosts', 'r')
+    lines = f.readlines()
+    ips = []
+    for line in lines:
+        match = SPARK_LINE_REGEX.match(line)
+        if match:
+            ips.append(match.group(1))
+    return ips
 
 
 def check_status():
@@ -89,7 +100,7 @@ def server_started_guard(f):
         if not status['running']:
             raise ServerNotStarted
         else:
-            return f(*args, status=status, **kwargs)
+            return f(status, **kwargs)
 
     return wrapper
 
@@ -110,13 +121,16 @@ def handle_server_not_started(e):
 @app.route('/api/start', methods=['POST', 'GET'])
 def start():
     num_servers = request.data or 5
-    run_ans(num_servers)
-    return success(None)
+    returncode = run_ans(num_servers)
+    if returncode == 0:
+        return success(check_status())
+    else 
+        return fail("Ansible exited with code 1")
 
 
 @app.route('/api/shutdown', methods=['POST', 'GET'])
 @server_started_guard
-def shutdown(status={}):
+def shutdown(status):
     print(status)
     run_ans(status["servers"], extra_vars=["cluster_state=absent"])
     clean_hosts_file()
@@ -131,7 +145,7 @@ def status():
 
 @app.route('/api/resize', methods=['POST'])
 @server_started_guard
-def resize():
+def resize(*args):
     data = request.get_data()
     print(data)
     if not data:
@@ -143,16 +157,21 @@ def resize():
 
 @app.route('/api/inject', methods=['POST'])
 @server_started_guard
-def inject():
+def inject(*args):
     files = request.files
-    print(request.get_data())
-    print(files)
+    ips = get_spark_ips()
     for name, content in files.items():
         f = open("recieved_files/" + name, "w+b")
         # .seek and .truncate is to overwrite the previous content
         f.seek(0)
         f.write(content.read())
         f.truncate()
+        for ip in ips:
+            subprocess.Popen(
+                    ['scp',
+                        '-o', 'StrictHostKeyChecking=no',
+                        '-o', 'UserKnownHostsFile=/dev/null',
+                        f'recieved_files/{name}' , f'ubuntu@{ip}:~/'])
     return success(None)
 
 

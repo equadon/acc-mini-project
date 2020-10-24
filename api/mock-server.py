@@ -71,7 +71,7 @@ def handle_server_not_started(e):
 
 @app.route('/api/start', methods=['POST', 'GET'])
 def start():
-    num_servers = request.data or 5
+    num_servers = int(request.get_data()) or 5
     time.sleep(5)
     mockstate['running'] = True
     mockstate['servers'] = num_servers

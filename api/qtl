@@ -6,7 +6,12 @@ ADDRESS="http://$IP:$PORT/api"
 
 if [ "$1" = "start" ]
 then 
-    curl -X POST "$ADDRESS/start"
+    if [ -z "$2" ]
+    then
+        curl -X POST "$ADDRESS/start"
+    else
+        curl -X POST "$ADDRESS/start" -d "$2"
+    fi
 elif [ "$1" = "shutdown" ]
 then
     curl -X POST "$ADDRESS/shutdown"
@@ -21,5 +26,6 @@ then
     NAME=$(basename "$2")
     curl -X POST "$ADDRESS/inject" -F "$NAME=@$2"
 elif [ "$1" = "set-ip" ]
+then
     export ANSIBLE_MASTER_IP="$2"
 fi

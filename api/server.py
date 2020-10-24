@@ -22,6 +22,7 @@ def run_ans(n, extra_vars=[]):
     print(call.stdout, call.stderr)
     return call.returncode
 
+
 SPARK_LINE_REGEX = re.compile(r'(\d{3}\.\d{3}\.\d{2,3}\.\d{2,3}) spark_node\d+')
 
 
@@ -46,14 +47,6 @@ def check_status():
 
 def clean_hosts_file():
     subprocess.Popen(['sudo', 'sed', '-i', '/spark_node/d', '/etc/hosts'])
-
-    # f = open('/etc/hosts', 'r+')
-    # lines = f.readlines()
-    # new_lines = filter(lambda line: not SPARK_LINE_REGEX.match(line), lines)
-    # f.seek(0)
-    # f.write("".join(new_lines))
-    # f.truncate()
-    # f.close()
 
 
 def success(data):
@@ -120,11 +113,11 @@ def handle_server_not_started(e):
 
 @app.route('/api/start', methods=['POST', 'GET'])
 def start():
-    num_servers = request.data or 5
+    num_servers = int(request.get_data()) or 2
     returncode = run_ans(num_servers)
     if returncode == 0:
         return success(check_status())
-    else 
+    else:
         return fail("Ansible exited with code 1")
 
 
@@ -134,7 +127,7 @@ def shutdown(status):
     print(status)
     run_ans(status["servers"], extra_vars=["cluster_state=absent"])
     clean_hosts_file()
-    
+
     return success(None)
 
 
@@ -145,13 +138,13 @@ def status():
 
 @app.route('/api/resize', methods=['POST'])
 @server_started_guard
-def resize(*args):
+def resize(status):
     data = request.get_data()
     print(data)
     if not data:
         return fail('no data recieved')
 
-    run_ans(int(data))
+    run_ans(status + int(data))
     return success(None)
 
 
@@ -171,7 +164,7 @@ def inject(*args):
                     ['scp',
                         '-o', 'StrictHostKeyChecking=no',
                         '-o', 'UserKnownHostsFile=/dev/null',
-                        f'recieved_files/{name}' , f'ubuntu@{ip}:~/'])
+                        f'recieved_files/{name}', f'ubuntu@{ip}:~/'])
     return success(None)
 
 

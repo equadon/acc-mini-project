@@ -71,12 +71,13 @@ def handle_server_not_started(e):
 
 @app.route('/api/start', methods=['POST', 'GET'])
 def start():
-    num_servers = int(request.get_data()) or 5
+    data = request.get_data()
+    num_servers = (data and int(data)) or 5
     time.sleep(5)
     mockstate['running'] = True
     mockstate['servers'] = num_servers
 
-    return success(None)
+    return success(mockstate)
 
 
 @app.route('/api/status', methods=['GET'])
@@ -91,12 +92,9 @@ def resize():
     print(data)
     if not data:
         return fail('no data recieved')
-    if data[0] == '+' or data[0] == '-':
-        mockstate['servers'] += int(data)
-    else:
-        mockstate['servers'] = int(data)
-    time.sleep(3)
-    return success(None)
+    mockstate['servers'] += int(data)
+    time.sleep(1)
+    return success(mockstate)
 
 
 @app.route('/api/inject', methods=['POST'])

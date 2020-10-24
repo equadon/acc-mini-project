@@ -113,7 +113,8 @@ def handle_server_not_started(e):
 
 @app.route('/api/start', methods=['POST', 'GET'])
 def start():
-    num_servers = int(request.get_data()) or 2
+    data = request.get_data()
+    num_servers = (data and int(data)) or 2
     returncode = run_ans(num_servers)
     if returncode == 0:
         return success(check_status())
@@ -136,13 +137,15 @@ def status():
 
 @app.route('/api/resize', methods=['POST'])
 @server_started_guard
-def resize(*args):
-    data = request.get_json()
+def resize(status):
+    data = request.get_data()
     if not data:
         return fail('no data recieved'), 400
 
-    run_ans(int(data['servers']))
-    return success(None)
+    extra_servers = int(data)
+    run_ans(status['servers'] + extra_servers)
+    status['servers'] += extra_servers
+    return success(status)
 
 
 @app.route('/api/inject', methods=['POST'])
